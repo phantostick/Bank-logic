@@ -7,7 +7,8 @@ minimum = 500
 while True:
     print("\n1. Add\n2. Deposit Money\n3. Withdraw Money\n4. View Balance\n5. Transfer Money\n6. Delete\n7. Exit")
     ch = int(input('Enter Your Choice '))
-
+    
+# Creation of account 
     if ch == 1:
         accno = int(input('Enter your Pin Number: '))
         accholder = input('Enter the Account Holder\'s Name: ')
@@ -17,7 +18,7 @@ while True:
         otp = int(input("Enter your OTP: "))
         if otp == rd:
             if balance >= minimum:
-                print("The info will be checked and added in 24h")
+                print("The info will be verified and added in 24h")
                 sql = "INSERT INTO reg VALUES (%d, '%s', %d)" % (accno, accholder, balance)
                 cur.execute(sql)
                 con.commit()
@@ -26,6 +27,7 @@ while True:
         else:
             print("Wrong OTP")
 
+# Deposit Money
     elif ch == 2:
         accno = int(input('Enter your Acc Number: '))
         upd = int(input('Enter the amount you want to deposit: '))
@@ -50,6 +52,7 @@ while True:
         else:
             print("Account number not found.")
 
+# Withdraw Money
     elif ch == 3:
         accno = int(input('Enter your Acc Number: '))
         upd = int(input('Enter the amount you want to withdraw: '))
@@ -76,6 +79,7 @@ while True:
         else:
             print("Account number not found.")
 
+# Viewing bal
     elif ch == 4:
         accno = int(input('Enter your account number: '))
         cur.execute("SELECT accno, accholder, balance FROM reg WHERE accno=%d" % (accno))
@@ -93,11 +97,23 @@ while True:
         else:
             print("Account number not found.")
 
+# Transfer
     elif ch == 5:
         accno = int(input("Enter Sender's Account Number: "))
         accno1 = int(input("Enter the Receiver's Account Number: "))
         mon = int(input("Enter the amount you want to transfer: "))
-
+        if accno == accno1:
+            print("Sender and receiver account numbers cannot be the same.")
+            continue
+        if mon <= 0:
+            print("Transfer amount must be greater than zero.")
+            continue
+        if mon < minimum:
+            print("Transfer amount must be at least 500.")
+            continue
+        if mon > 1000000:
+            print("Transfer amount must not exceed 1,000,000.")
+            continue
         cur.execute("SELECT balance FROM reg WHERE accno=%d" % (accno))
         sender_balance = cur.fetchone()
         cur.execute("SELECT balance FROM reg WHERE accno=%d" % (accno1))
@@ -107,6 +123,7 @@ while True:
             rd = random.randint(1000, 9999)
             print("OTP is %d" % rd)
             otp = int(input("Enter your OTP: "))
+
             if otp == rd:
                 if sender_balance[0] - mon >= minimum:
                     cur.execute("UPDATE reg SET balance=%d WHERE accno=%d" % (sender_balance[0] - mon, accno))
@@ -120,6 +137,7 @@ while True:
         else:
             print("Invalid account numbers.")
 
+# Deletion
     elif ch == 6:
         accno = int(input('Enter the Account Number: '))
         sql = "DELETE FROM reg WHERE accno=%d" % (accno)
@@ -127,6 +145,7 @@ while True:
         con.commit()
         print("Account deleted successfully.")
 
+# break
     elif ch == 7:
         break
 

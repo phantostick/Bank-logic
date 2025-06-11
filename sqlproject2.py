@@ -7,7 +7,7 @@ minimum = 500
 while True:
     print("\n1. Add\n2. Deposit Money\n3. Withdraw Money\n4. View Balance\n5. Transfer Money\n6. Delete\n7. Exit")
     ch = int(input('Enter Your Choice '))
-    
+
 # Creation of account 
     if ch == 1:
         accno = int(input('Enter your Pin Number: '))
@@ -140,6 +140,16 @@ while True:
 # Deletion
     elif ch == 6:
         accno = int(input('Enter the Account Number: '))
+        fe=cur.execute("SELECT * FROM reg WHERE accno=%d" % (accno))
+        if fe is None:
+            print("Account number not found.")
+            continue
+        rd = random.randint(1000, 9999)
+        print("OTP is %d" % rd)
+        otp = int(input("Enter your OTP: "))
+        if otp != rd:
+            print("Wrong OTP")
+            continue
         sql = "DELETE FROM reg WHERE accno=%d" % (accno)
         cur.execute(sql)
         con.commit()

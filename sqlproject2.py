@@ -1,163 +1,143 @@
 import mysql.connector
 import random
 
+# Constants
+MINIMUM_BALANCE = 500
+OTP_RANGE = (1000, 9999)
+
+# DB Connection
 con = mysql.connector.connect(user="root", password="", database="atm")
 cur = con.cursor()
-minimum = 500  
-while True:
-    print("\n1. Add\n2. Deposit Money\n3. Withdraw Money\n4. View Balance\n5. Transfer Money\n6. Delete\n7. Exit")
-    ch = int(input('Enter Your Choice '))
 
-# Creation of account 
-    if ch == 1:
-        accno = int(input('Enter your Pin Number: '))
-        accholder = input('Enter the Account Holder\'s Name: ')
-        balance = int(input('Enter Balance: '))
-        rd = random.randint(1000, 9999)
-        print("OTP is %d" % rd)
-        otp = int(input("Enter your OTP: "))
-        if otp == rd:
-            if balance >= minimum:
-                print("The info will be verified and added in 24h")
-                sql = "INSERT INTO reg VALUES (%d, '%s', %d)" % (accno, accholder, balance)
-                cur.execute(sql)
-                con.commit()
-            else:
-                print("Minimum Balance Must Be 500")
+def get_otp():
+    otp = random.randint(*OTP_RANGE)
+    print(f"OTP is {otp}")
+    return otp
+
+def verify_otp():
+    return int(input("Enter your OTP: ")) == get_otp()
+
+def get_balance(accno):
+    cur.execute(f"SELECT balance FROM reg WHERE accno={accno}")
+    return cur.fetchone()
+
+def update_balance(accno, amount):
+    cur.execute(f"UPDATE reg SET balance={amount} WHERE accno={accno}")
+    con.commit()
+
+def account_exists(accno):
+    cur.execute(f"SELECT * FROM reg WHERE accno={accno}")
+    return cur.fetchone()
+
+def display_account_info(accno):
+    cur.execute(f"SELECT accno, accholder, balance FROM reg WHERE accno={accno}")
+    info = cur.fetchone()
+    if info and verify_otp():
+        print(f"Pin number: {info[0]}\nName: {info[1]}\nBalance: {info[2]}")
+    else:
+        print("Account not found or wrong OTP")
+
+def add_account():
+    accno = int(input('Enter your Pin Number: '))
+    name = input("Enter the Account Holder's Name: ")
+    balance = int(input("Enter Balance: "))
+    if balance < MINIMUM_BALANCE:
+        print("Minimum Balance Must Be 500")
+        return
+    if verify_otp():
+        cur.execute(f"INSERT INTO reg VALUES ({accno}, '{name}', {balance})")
+        con.commit()
+        print("The info will be verified and added in 24h")
+    else:
+        print("Wrong OTP")
+
+def deposit():
+    accno = int(input("Enter your Acc Number: "))
+    amount = int(input("Enter the amount you want to deposit: "))
+    current = get_balance(accno)
+    if current and verify_otp():
+        new_balance = current[0] + amount
+        update_balance(accno, new_balance)
+        print("Deposit successful! New balance is:", new_balance)
+    else:
+        print("Account number not found or wrong OTP")
+
+def withdraw():
+    accno = int(input("Enter your Acc Number: "))
+    amount = int(input("Enter the amount you want to withdraw: "))
+    current = get_balance(accno)
+    if current and verify_otp():
+        new_balance = current[0] - amount
+        if new_balance >= MINIMUM_BALANCE:
+            update_balance(accno, new_balance)
+            print("Withdrawal successful! New balance is:", new_balance)
         else:
-            print("Wrong OTP")
+            print("Balance must not go below 500")
+    else:
+        print("Account number not found or wrong OTP")
 
-# Deposit Money
-    elif ch == 2:
-        accno = int(input('Enter your Acc Number: '))
-        upd = int(input('Enter the amount you want to deposit: '))
+def transfer():
+    sender = int(input("Enter Sender's Account Number: "))
+    receiver = int(input("Enter the Receiver's Account Number: "))
+    amount = int(input("Enter the amount you want to transfer: "))
 
-        sql = "SELECT balance FROM reg WHERE accno=%d" % (accno)
-        cur.execute(sql)
-        result = cur.fetchone()
-        if result:
-            rd = random.randint(1000, 9999)
-            print("OTP is %d" % rd)
-            otp = int(input("Enter your OTP: "))
-            if otp == rd:
-                current_balance = result[0]
-                new_balance = current_balance + upd
+    if sender == receiver:
+        print("Sender and receiver account numbers cannot be the same.")
+        return
+    if not (MINIMUM_BALANCE <= amount <= 1000000):
+        print("Transfer amount must be between 500 and 1,000,000.")
+        return
 
-                sql = "UPDATE reg SET balance=%d WHERE accno=%d" % (new_balance, accno)
-                cur.execute(sql)
-                con.commit()
-                print("Deposit successful! New balance is:", new_balance)
-            else:
-                print("Wrong OTP")
+    sender_bal = get_balance(sender)
+    receiver_bal = get_balance(receiver)
+
+    if sender_bal and receiver_bal and verify_otp():
+        if sender_bal[0] - amount >= MINIMUM_BALANCE:
+            update_balance(sender, sender_bal[0] - amount)
+            update_balance(receiver, receiver_bal[0] + amount)
+            print("Transfer successful! New sender balance is:", sender_bal[0] - amount)
         else:
-            print("Account number not found.")
+            print("Sender's balance must not go below 500")
+    else:
+        print("Invalid account numbers or wrong OTP")
 
-# Withdraw Money
-    elif ch == 3:
-        accno = int(input('Enter your Acc Number: '))
-        upd = int(input('Enter the amount you want to withdraw: '))
-
-        sql = "SELECT balance FROM reg WHERE accno=%d" % (accno)
-        cur.execute(sql)
-        result = cur.fetchone()
-        if result:
-            rd = random.randint(1000, 9999)
-            print("OTP is %d" % rd)
-            otp = int(input("Enter your OTP: "))
-            if otp == rd:
-                current_balance = result[0]
-                new_balance = current_balance - upd
-                if new_balance >= minimum:
-                    sql = "UPDATE reg SET balance=%d WHERE accno=%d" % (new_balance, accno)
-                    cur.execute(sql)
-                    con.commit()
-                    print("Withdrawal successful! New balance is:", new_balance)
-                else:
-                    print("Balance must not go below 500")
-            else:
-                print("Wrong OTP")
-        else:
-            print("Account number not found.")
-
-# Viewing bal
-    elif ch == 4:
-        accno = int(input('Enter your account number: '))
-        cur.execute("SELECT accno, accholder, balance FROM reg WHERE accno=%d" % (accno))
-        abc = cur.fetchone()
-        if abc:
-            rd = random.randint(1000, 9999)
-            print("OTP is %d" % rd)
-            otp = int(input("Enter your OTP: "))
-            if otp == rd:
-                print(f"Pin number: {abc[0]}")
-                print(f"Name: {abc[1]}")
-                print(f"Balance: {abc[2]}")
-            else:
-                print("Wrong OTP")
-        else:
-            print("Account number not found.")
-
-# Transfer
-    elif ch == 5:
-        accno = int(input("Enter Sender's Account Number: "))
-        accno1 = int(input("Enter the Receiver's Account Number: "))
-        mon = int(input("Enter the amount you want to transfer: "))
-        if accno == accno1:
-            print("Sender and receiver account numbers cannot be the same.")
-            continue
-        if mon <= 0:
-            print("Transfer amount must be greater than zero.")
-            continue
-        if mon < minimum:
-            print("Transfer amount must be at least 500.")
-            continue
-        if mon > 1000000:
-            print("Transfer amount must not exceed 1,000,000.")
-            continue
-        cur.execute("SELECT balance FROM reg WHERE accno=%d" % (accno))
-        sender_balance = cur.fetchone()
-        cur.execute("SELECT balance FROM reg WHERE accno=%d" % (accno1))
-        receiver_balance = cur.fetchone()
-
-        if sender_balance and receiver_balance:
-            rd = random.randint(1000, 9999)
-            print("OTP is %d" % rd)
-            otp = int(input("Enter your OTP: "))
-
-            if otp == rd:
-                if sender_balance[0] - mon >= minimum:
-                    cur.execute("UPDATE reg SET balance=%d WHERE accno=%d" % (sender_balance[0] - mon, accno))
-                    cur.execute("UPDATE reg SET balance=%d WHERE accno=%d" % (receiver_balance[0] + mon, accno1))
-                    con.commit()
-                    print("Transfer successful! New sender balance is:", sender_balance[0] - mon)
-                else:
-                    print("Sender's balance must not go below 500")
-            else:
-                print("Wrong OTP")
-        else:
-            print("Invalid account numbers.")
-
-# Deletion
-    elif ch == 6:
-        accno = int(input('Enter the Account Number: '))
-        fe=cur.execute("SELECT * FROM reg WHERE accno=%d" % (accno))
-        if fe is None:
-            print("Account number not found.")
-            continue
-        rd = random.randint(1000, 9999)
-        print("OTP is %d" % rd)
-        otp = int(input("Enter your OTP: "))
-        if otp != rd:
-            print("Wrong OTP")
-            continue
-        sql = "DELETE FROM reg WHERE accno=%d" % (accno)
-        cur.execute(sql)
+def delete_account():
+    accno = int(input("Enter the Account Number: "))
+    if not account_exists(accno):
+        print("Account number not found.")
+        return
+    if verify_otp():
+        cur.execute(f"DELETE FROM reg WHERE accno={accno}")
         con.commit()
         print("Account deleted successfully.")
+    else:
+        print("Wrong OTP")
 
-# break
-    elif ch == 7:
+# Main loop
+while True:
+    print("""
+1. Add Account
+2. Deposit Money
+3. Withdraw Money
+4. View Balance
+5. Transfer Money
+6. Delete Account
+7. Exit""")
+    choice = int(input("Enter Your Choice: "))
+    if choice == 1:
+        add_account()
+    elif choice == 2:
+        deposit()
+    elif choice == 3:
+        withdraw()
+    elif choice == 4:
+        accno = int(input("Enter your account number: "))
+        display_account_info(accno)
+    elif choice == 5:
+        transfer()
+    elif choice == 6:
+        delete_account()
+    elif choice == 7:
         break
-
     else:
         print("Invalid Choice")
